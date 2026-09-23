@@ -89,6 +89,11 @@ foto:
 - Le coordinate le trovi su Google Maps (tasto destro sul punto → copia le coordinate),
   oppure nei dati EXIF della foto se il telefono ha il GPS attivo.
 - Le foto verticali e orizzontali vengono mostrate intere, senza ritagli.
+- Le dimensioni di ogni foto vengono lette in automatico (`src/lib/image-size.ts`),
+  quindi la galleria non "salta" mentre le immagini si caricano. Formati supportati:
+  JPG, PNG, WebP. Per un sito veloce, esporta le foto a circa 2000 px sul lato lungo.
+- Le 6 immagini attuali in `public/foto/molise/` sono illustrazioni di esempio:
+  sostituiscile con i tuoi scatti tenendo gli stessi nomi, oppure cambia `src` nel `.md`.
 
 ## Cosa manca ancora (prossimi passi)
 - Il profilo altimetrico animato del prototipo HTML non è ancora stato riportato in

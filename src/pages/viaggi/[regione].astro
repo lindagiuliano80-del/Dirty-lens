@@ -2,6 +2,7 @@
 import 'leaflet/dist/leaflet.css';
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import regionsGeoJSON from '../../data/italy-regions.json';
+import { imageSize } from '../../lib/image-size';
 
 export async function getStaticPaths() {
   const viaggi = await getCollection('viaggi');
@@ -26,7 +27,7 @@ function grad(i: number) {
   return `linear-gradient(${35 + (i * 47) % 180}deg, ${a}, ${b})`;
 }
 
-const foto = d.foto.map((f, i) => ({ ...f, bg: grad(i) }));
+const foto = d.foto.map((f, i) => ({ ...f, bg: grad(i), size: f.src ? imageSize(f.src) : null }));
 const regionFeature = (regionsGeoJSON as any).features.find(
   (f: any) => f.properties.reg_name === d.regione,
 );
@@ -77,7 +78,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
               <figure class="slide" data-index={i}>
                 <div class="frame">
                   {f.src ? (
-                    <img src={f.src} alt={f.didascalia || f.luogo} loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />
+                    <img src={f.src} alt={f.didascalia || f.luogo} width={f.size?.width} height={f.size?.height} loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />
                   ) : (
                     <div class="ph" style={`background:${f.bg}`}><span>foto segnaposto</span></div>
                   )}
@@ -325,27 +326,28 @@ const pad = (n: number) => String(n).padStart(2, '0');
       .scroller {
         flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 22px;
         overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
-        padding: 28px 12% 20px; scrollbar-width: none; outline: none;
+        padding: 28px 7% 20px; scrollbar-width: none; outline: none;
+        container-type: inline-size;
         overscroll-behavior-x: contain;
       }
       .scroller::-webkit-scrollbar { display: none; }
       .scroller:focus-visible { box-shadow: inset 0 0 0 1px var(--amber); }
 
       .slide {
-        margin: 0; flex: none; display: flex; flex-direction: column;
+        margin: 0; flex: none; display: flex; flex-direction: column; justify-content: center;
         scroll-snap-align: center; cursor: pointer;
         opacity: .4; transform: scale(.96);
         transition: opacity .45s ease, transform .45s ease;
       }
       .slide.is-active { opacity: 1; transform: none; cursor: default; }
-      .frame { height: var(--photo-h); display: flex; }
-      /* Real photos keep their own aspect ratio: full height, natural width. */
+      .frame { display: flex; }
+      /* Real photos keep their own aspect ratio, as large as the column allows. */
       .frame img {
-        height: var(--photo-h); width: auto; max-width: 52vw; object-fit: contain;
+        width: auto; height: auto; max-height: var(--photo-h); max-width: 84cqw;
         border-radius: 2px; box-shadow: 0 20px 44px rgba(30,33,35,.16); display: block;
       }
       .ph {
-        height: var(--photo-h); aspect-ratio: 3 / 2; max-width: 52vw; border-radius: 2px;
+        width: min(84cqw, calc(var(--photo-h) * 1.5)); aspect-ratio: 3 / 2; border-radius: 2px;
         box-shadow: 0 20px 44px rgba(30,33,35,.16); display: flex; align-items: flex-end; padding: 14px 16px;
       }
       .ph span { font-size: 11px; color: rgba(255,255,255,.55); letter-spacing: .04em; }
@@ -470,7 +472,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
           grid-template-columns: 1fr; height: auto;
         }
         .scroller { flex: none; padding: 18px 8% 14px; gap: 14px; }
-        .frame img, .ph { max-width: 84vw; }
         .map-col { border-left: 0; border-top: 1px solid var(--hairline); padding: 20px 16px; }
         .map-box { flex: none; height: 300px; }
         .controls { height: 56px; padding: 0 16px 14px; }
