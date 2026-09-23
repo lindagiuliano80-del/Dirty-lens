@@ -45,6 +45,15 @@ const pad = (n: number) => String(n).padStart(2, '0');
     />
   </head>
   <body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <filter id="pencilWobbleLive" x="-40%" y="-40%" width="180%" height="180%">
+        <feTurbulence type="fractalNoise" numOctaves="2" seed="11" result="noise">
+          <animate attributeName="baseFrequency" values="0.020;0.032;0.022;0.020" dur="16s" repeatCount="indefinite" />
+        </feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" />
+      </filter>
+    </svg>
+
     <header class="head">
       <a class="back" href="/">← Torna alla mappa</a>
       <div class="head-main">
@@ -146,7 +155,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
           zoomControl: false, attributionControl: true, scrollWheelZoom: false,
           zoomSnap: 0.25,
         });
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
           attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19,
         }).addTo(map);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -155,7 +164,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
         if (data.region) {
           const region = L.geoJSON(data.region, {
             style: {
-              fillColor: '#8E7BC4', fillOpacity: 0.07, color: '#8A6BD0', weight: 1.4,
+              fillColor: '#E4DBF5', fillOpacity: 0.38, color: '#8A6BD0', weight: 1.8,
               dashArray: '1,3,6,2,9,1,4,5,2,7', className: 'mm-region',
             },
             interactive: false,
@@ -173,7 +182,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
               (p) => [+p.getAttribute('lat')!, +p.getAttribute('lon')!] as [number, number],
             );
             if (pts.length > 1) {
-              L.polyline(pts, { color: '#EBE7DD', weight: 1.6, opacity: 0.45, dashArray: '4,5', interactive: false })
+              L.polyline(pts, { color: '#5E3FA8', weight: 1.8, opacity: 0.6, dashArray: '4,5', interactive: false })
                 .addTo(map).bringToBack();
             }
           })
@@ -273,8 +282,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
     <style>
       :root {
-        --bg-deep: #0F1618; --bg-panel: #182123; --ink: #EBE7DD; --ink-muted: #93A19E;
-        --hairline: #2C3739; --amber: #8E7BC4;
+        /* Same light world as the homepage map: white ground, grey neutrals, violet glow. */
+        --bg-deep: #FFFFFF; --bg-panel: #F6F5F8; --ink: #1E2123; --ink-muted: #6B6B6B;
+        --hairline: #E4E1EA; --amber: #6E4FBE; --violet-soft: #E4DBF5; --violet: #8A6BD0;
       }
       * { box-sizing: border-box; }
       html, body {
@@ -324,7 +334,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       .slide {
         margin: 0; flex: none; display: flex; flex-direction: column;
         scroll-snap-align: center; cursor: pointer;
-        opacity: .32; transform: scale(.96);
+        opacity: .4; transform: scale(.96);
         transition: opacity .45s ease, transform .45s ease;
       }
       .slide.is-active { opacity: 1; transform: none; cursor: default; }
@@ -332,11 +342,11 @@ const pad = (n: number) => String(n).padStart(2, '0');
       /* Real photos keep their own aspect ratio: full height, natural width. */
       .frame img {
         height: var(--photo-h); width: auto; max-width: 52vw; object-fit: contain;
-        border-radius: 2px; box-shadow: 0 24px 60px rgba(0,0,0,.5); display: block;
+        border-radius: 2px; box-shadow: 0 20px 44px rgba(30,33,35,.16); display: block;
       }
       .ph {
         height: var(--photo-h); aspect-ratio: 3 / 2; max-width: 52vw; border-radius: 2px;
-        box-shadow: 0 24px 60px rgba(0,0,0,.5); display: flex; align-items: flex-end; padding: 14px 16px;
+        box-shadow: 0 20px 44px rgba(30,33,35,.16); display: flex; align-items: flex-end; padding: 14px 16px;
       }
       .ph span { font-size: 11px; color: rgba(255,255,255,.55); letter-spacing: .04em; }
 
@@ -353,7 +363,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       }
       .nav {
         width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--hairline);
-        background: rgba(24,33,35,.85); color: var(--ink); font-size: 16px; cursor: pointer;
+        background: rgba(255,255,255,.9); color: var(--ink); font-size: 16px; cursor: pointer;
         font-family: inherit; backdrop-filter: blur(4px);
       }
       .nav:hover:not(:disabled) { border-color: var(--amber); color: var(--amber); }
@@ -371,21 +381,30 @@ const pad = (n: number) => String(n).padStart(2, '0');
         border: 1px solid var(--hairline);
       }
       #minimap { position: absolute; inset: 0; background: var(--bg-deep); }
-      :global(.leaflet-container) { background: var(--bg-deep) !important; font-family: 'Space Grotesk', sans-serif; }
+      :global(.leaflet-container) { background: #fff !important; font-family: 'Space Grotesk', sans-serif; }
       :global(.leaflet-control-attribution) {
-        background: rgba(15,22,24,.7) !important; color: #6B7775 !important; font-size: 9.5px;
+        background: rgba(255,255,255,.7) !important; color: #6B6B6B !important; font-size: 9.5px;
       }
-      :global(.leaflet-control-attribution a) { color: #93A19E !important; }
+      :global(.leaflet-control-attribution a) { color: #6B6B6B !important; }
       :global(.leaflet-bar a) {
         background: var(--bg-panel) !important; color: var(--ink) !important; border-color: var(--hairline) !important;
       }
-      :global(.mm-region) { filter: drop-shadow(0 0 5px #6E4FBE); }
+      :global(.mm-region) {
+        animation: pulseGlow 7s ease-in-out infinite;
+        filter: url(#pencilWobbleLive) blur(.35px) drop-shadow(0 0 5px #9B7FDA) drop-shadow(0 0 13px #5E3FA8);
+      }
+      @keyframes pulseGlow {
+        0% { filter: url(#pencilWobbleLive) blur(.3px) drop-shadow(0 0 4px #9B7FDA) drop-shadow(0 0 10px #5E3FA8); }
+        35% { filter: url(#pencilWobbleLive) blur(.7px) drop-shadow(0 0 9px #B29AE8) drop-shadow(0 0 20px #6E4FBE); }
+        70% { filter: url(#pencilWobbleLive) blur(.45px) drop-shadow(0 0 6px #8A6BD0) drop-shadow(0 0 24px #4A2F8C); }
+        100% { filter: url(#pencilWobbleLive) blur(.3px) drop-shadow(0 0 4px #9B7FDA) drop-shadow(0 0 10px #5E3FA8); }
+      }
 
       /* Photo points */
       :global(.mm-pin) { position: relative; }
       :global(.mm-pin .dot) {
         position: absolute; left: 3px; top: 3px; width: 8px; height: 8px; border-radius: 50%;
-        background: #5A5070; border: 1px solid #8E7BC4; transition: all .3s ease;
+        background: #fff; border: 1.5px solid #8A6BD0; transition: all .3s ease;
       }
       :global(.mm-pin .pulse) {
         position: absolute; left: -9px; top: -9px; width: 32px; height: 32px; border-radius: 50%;
@@ -395,13 +414,13 @@ const pad = (n: number) => String(n).padStart(2, '0');
       :global(.mm-pin .label) {
         position: absolute; left: 20px; top: 50%; transform: translate(-4px, -50%);
         white-space: nowrap; font-size: 12px; font-weight: 500; color: var(--ink);
-        background: rgba(24,33,35,.92); border: 1px solid #8E7BC4; padding: 4px 9px; border-radius: 3px;
+        background: rgba(255,255,255,.95); border: 1px solid #8A6BD0; padding: 4px 9px; border-radius: 3px;
         opacity: 0; transition: opacity .3s ease, transform .3s ease; pointer-events: none;
         box-shadow: 0 0 14px rgba(142,123,196,.45);
       }
-      :global(.mm-pin:hover .dot) { background: #8E7BC4; }
+      :global(.mm-pin:hover .dot) { background: #E4DBF5; }
       :global(.mm-pin.is-active .dot) {
-        left: 1px; top: 1px; width: 12px; height: 12px; background: #E4DBF5; border-color: #fff;
+        left: 1px; top: 1px; width: 12px; height: 12px; background: #6E4FBE; border-color: #fff;
         box-shadow: 0 0 8px #B29AE8, 0 0 18px #8A6BD0;
       }
       :global(.mm-pin.is-active .pulse) { opacity: 1; animation: mmPulse 2.2s ease-out infinite; }
@@ -431,7 +450,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
       /* ---- Below the split ---- */
       .wrap { max-width: 920px; margin: 0 auto; padding: 64px 40px 100px; }
       .section-title { font-size: 12.5px; color: var(--ink-muted); letter-spacing: .02em; margin: 0 0 16px; }
-      .notes { max-width: 640px; font-size: 15.5px; line-height: 1.75; color: #D8D3C8; margin-bottom: 56px; }
+      .notes { max-width: 640px; font-size: 15.5px; line-height: 1.75; color: #33373A; margin-bottom: 56px; }
       .notes :global(p) { margin: 0 0 16px; }
       .track-box {
         background: var(--bg-panel); border: 1px solid var(--hairline); border-radius: 4px;
@@ -442,7 +461,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
         font-family: 'Space Grotesk', sans-serif; background: transparent; border: 1px solid var(--amber);
         color: var(--amber); font-size: 13px; padding: 9px 18px; border-radius: 3px; text-decoration: none;
       }
-      .dl-btn:hover { background: rgba(142,123,196,.15); }
+      .dl-btn:hover { background: rgba(142,123,196,.12); }
 
       /* ---- Tablet / phone: gallery on top, map below ---- */
       @media (max-width: 900px) {
