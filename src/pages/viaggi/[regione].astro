@@ -1,5 +1,7 @@
 ---
+import 'leaflet/dist/leaflet.css';
 import { getCollection, render, type CollectionEntry } from 'astro:content';
+import regionsGeoJSON from '../../data/italy-regions.json';
 
 export async function getStaticPaths() {
   const viaggi = await getCollection('viaggi');
@@ -16,6 +18,19 @@ interface Props {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 const d = entry.data;
+
+// Placeholder background for photos that don't have a real `src` yet.
+function grad(i: number) {
+  const a = d.coverColors[i % d.coverColors.length];
+  const b = d.coverColors[(i + 1) % d.coverColors.length];
+  return `linear-gradient(${35 + (i * 47) % 180}deg, ${a}, ${b})`;
+}
+
+const foto = d.foto.map((f, i) => ({ ...f, bg: grad(i) }));
+const regionFeature = (regionsGeoJSON as any).features.find(
+  (f: any) => f.properties.reg_name === d.regione,
+);
+const pad = (n: number) => String(n).padStart(2, '0');
 ---
 
 <html lang="it">
@@ -30,28 +45,68 @@ const d = entry.data;
     />
   </head>
   <body>
-    <a class="back" href="/">← Torna alla mappa</a>
+    <header class="head">
+      <a class="back" href="/">← Torna alla mappa</a>
+      <div class="head-main">
+        <div>
+          <div class="eyebrow">{d.regione} · {d.data}</div>
+          <h1 class="title">{d.titolo}</h1>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="n">{d.km}</div><div class="l">km</div></div>
+          <div class="stat"><div class="n">{d.dislivelloM.toLocaleString('it-IT')}</div><div class="l">m dislivello</div></div>
+          <div class="stat"><div class="n">{d.giorni}</div><div class="l">giorni</div></div>
+        </div>
+      </div>
+    </header>
+
+    {foto.length > 0 && (
+      <section class="split" aria-label="Galleria fotografica e mappa">
+        <div class="gallery-col">
+          <div class="scroller" id="scroller" tabindex="0" aria-label="Galleria: usa le frecce per scorrere">
+            {foto.map((f, i) => (
+              <figure class="slide" data-index={i}>
+                <div class="frame">
+                  {f.src ? (
+                    <img src={f.src} alt={f.didascalia || f.luogo} loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />
+                  ) : (
+                    <div class="ph" style={`background:${f.bg}`}><span>foto segnaposto</span></div>
+                  )}
+                </div>
+                <figcaption>
+                  <span class="num">{pad(i + 1)}</span>
+                  <span class="place">{f.luogo}</span>
+                  {f.didascalia && <span class="cap">{f.didascalia}</span>}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+
+          <div class="controls">
+            <button class="nav" id="prev" aria-label="Foto precedente">←</button>
+            <div class="counter"><span id="cur">01</span> / {pad(foto.length)}</div>
+            <button class="nav" id="next" aria-label="Foto successiva">→</button>
+          </div>
+        </div>
+
+        <aside class="map-col">
+          <div class="map-box">
+            <div id="minimap"></div>
+          </div>
+          <div class="now">
+            <div class="now-thumb" id="now-thumb"></div>
+            <div class="now-text">
+              <div class="now-label">Scattata a</div>
+              <div class="now-place" id="now-place"></div>
+              <div class="now-coords" id="now-coords"></div>
+            </div>
+          </div>
+          <div class="map-hint">Clicca un punto sulla mappa per andare alla foto.</div>
+        </aside>
+      </section>
+    )}
 
     <div class="wrap">
-      <div class="eyebrow">{d.regione} · {d.data}</div>
-      <h1 class="title">{d.titolo}</h1>
-
-      <div class="stats">
-        <div class="stat"><div class="n">{d.km}</div><div class="l">km</div></div>
-        <div class="stat"><div class="n">{d.dislivelloM.toLocaleString('it-IT')}</div><div class="l">m dislivello</div></div>
-        <div class="stat"><div class="n">{d.giorni}</div><div class="l">giorni</div></div>
-      </div>
-
-      <div class="section-title">Galleria</div>
-      <div class="gallery">
-        {Array.from({ length: 6 }).map((_, i) => {
-          const a = d.coverColors[i % d.coverColors.length];
-          const b = d.coverColors[(i + 1) % d.coverColors.length];
-          return <div style={`background: linear-gradient(${35 + (i * 47) % 180}deg, ${a}, ${b});`} />;
-        })}
-      </div>
-      <div class="gallery-note">Foto segnaposto — sostituiscile con gli scatti veri del viaggio.</div>
-
       <div class="section-title">Osservazioni</div>
       <div class="notes">
         <Content />
@@ -63,6 +118,159 @@ const d = entry.data;
       </div>
     </div>
 
+    <script type="application/json" id="trip-data" set:html={JSON.stringify({
+      foto, region: regionFeature ?? null, gpx: `/gpx/${d.gpxFile}`,
+    })} />
+
+    <script>
+      import L from 'leaflet';
+
+      type Foto = { src?: string; luogo: string; didascalia: string; lat: number; lng: number; bg: string };
+      const data = JSON.parse(document.getElementById('trip-data')!.textContent!);
+      const foto: Foto[] = data.foto;
+
+      const scroller = document.getElementById('scroller');
+      if (scroller && foto.length) init(scroller);
+
+      function init(scroller: HTMLElement) {
+        const slides = Array.from(scroller.querySelectorAll<HTMLElement>('.slide'));
+        const cur = document.getElementById('cur')!;
+        const nowPlace = document.getElementById('now-place')!;
+        const nowCoords = document.getElementById('now-coords')!;
+        const nowThumb = document.getElementById('now-thumb')!;
+        const prevBtn = document.getElementById('prev') as HTMLButtonElement;
+        const nextBtn = document.getElementById('next') as HTMLButtonElement;
+
+        // ---- Mini map ----
+        const map = L.map('minimap', {
+          zoomControl: false, attributionControl: true, scrollWheelZoom: false,
+          zoomSnap: 0.25,
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19,
+        }).addTo(map);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        let bounds = L.latLngBounds(foto.map((f) => [f.lat, f.lng] as [number, number]));
+        if (data.region) {
+          const region = L.geoJSON(data.region, {
+            style: {
+              fillColor: '#8E7BC4', fillOpacity: 0.07, color: '#8A6BD0', weight: 1.4,
+              dashArray: '1,3,6,2,9,1,4,5,2,7', className: 'mm-region',
+            },
+            interactive: false,
+          }).addTo(map);
+          bounds = bounds.extend(region.getBounds());
+        }
+        map.fitBounds(bounds, { padding: [18, 18] });
+
+        // The GPX route, drawn underneath the photo points.
+        fetch(data.gpx)
+          .then((r) => (r.ok ? r.text() : Promise.reject()))
+          .then((xml) => {
+            const doc = new DOMParser().parseFromString(xml, 'application/xml');
+            const pts = Array.from(doc.getElementsByTagName('trkpt')).map(
+              (p) => [+p.getAttribute('lat')!, +p.getAttribute('lon')!] as [number, number],
+            );
+            if (pts.length > 1) {
+              L.polyline(pts, { color: '#EBE7DD', weight: 1.6, opacity: 0.45, dashArray: '4,5', interactive: false })
+                .addTo(map).bringToBack();
+            }
+          })
+          .catch(() => {});
+
+        const markers = foto.map((f, i) => {
+          const m = L.marker([f.lat, f.lng], {
+            icon: L.divIcon({
+              className: 'mm-pin',
+              html: `<span class="pulse"></span><span class="dot"></span><span class="label">${escapeHtml(f.luogo)}</span>`,
+              iconSize: [14, 14], iconAnchor: [7, 7],
+            }),
+            keyboard: false, riseOnHover: true,
+          }).addTo(map);
+          m.on('click', () => goTo(i));
+          return m;
+        });
+
+        // ---- Active photo tracking ----
+        let active = -1;
+
+        function setActive(i: number) {
+          if (i === active) return;
+          active = i;
+          const f = foto[i];
+          slides.forEach((s, j) => s.classList.toggle('is-active', j === i));
+          markers.forEach((m, j) => {
+            const el = m.getElement();
+            el?.classList.toggle('is-active', j === i);
+            m.setZIndexOffset(j === i ? 1000 : 0);
+          });
+          cur.textContent = String(i + 1).padStart(2, '0');
+          nowPlace.textContent = f.luogo;
+          nowCoords.textContent = `${f.lat.toFixed(4)}° N, ${f.lng.toFixed(4)}° E`;
+          nowThumb.style.backgroundImage = f.src ? `url("${f.src}")` : f.bg;
+          prevBtn.disabled = i === 0;
+          nextBtn.disabled = i === foto.length - 1;
+          map.panInside([f.lat, f.lng], { padding: [40, 40] });
+        }
+
+        // Whichever slide's centre is nearest the scroller's centre is the active one.
+        function detect() {
+          const box = scroller.getBoundingClientRect();
+          const mid = box.left + box.width / 2;
+          let best = 0, bestDist = Infinity;
+          slides.forEach((s, i) => {
+            const r = s.getBoundingClientRect();
+            const dist = Math.abs(r.left + r.width / 2 - mid);
+            if (dist < bestDist) { bestDist = dist; best = i; }
+          });
+          setActive(best);
+        }
+
+        let raf = 0;
+        scroller.addEventListener('scroll', () => {
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(detect);
+        }, { passive: true });
+        window.addEventListener('resize', detect);
+
+        function goTo(i: number) {
+          const s = slides[Math.max(0, Math.min(slides.length - 1, i))];
+          const left = s.offsetLeft - (scroller.clientWidth - s.offsetWidth) / 2;
+          scroller.scrollTo({ left, behavior: 'smooth' });
+        }
+
+        prevBtn.addEventListener('click', () => goTo(active - 1));
+        nextBtn.addEventListener('click', () => goTo(active + 1));
+        scroller.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowRight') { e.preventDefault(); goTo(active + 1); }
+          if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(active - 1); }
+        });
+        slides.forEach((s, i) => s.addEventListener('click', () => { if (i !== active) goTo(i); }));
+
+        // A vertical mouse wheel steps one photo at a time; horizontal trackpad
+        // swipes are left to the browser. At either end the page scrolls normally.
+        let wheelLock = false, wheelTimer = 0;
+        scroller.addEventListener('wheel', (e) => {
+          if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+          const dir = e.deltaY > 0 ? 1 : -1;
+          if ((dir < 0 && active === 0) || (dir > 0 && active === foto.length - 1)) return;
+          e.preventDefault();
+          clearTimeout(wheelTimer);
+          wheelTimer = window.setTimeout(() => { wheelLock = false; }, 220);
+          if (wheelLock) return;
+          wheelLock = true;
+          goTo(active + dir);
+        }, { passive: false });
+
+        detect();
+      }
+
+      function escapeHtml(s: string) {
+        return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+      }
+    </script>
+
     <style>
       :root {
         --bg-deep: #0F1618; --bg-panel: #182123; --ink: #EBE7DD; --ink-muted: #93A19E;
@@ -73,33 +281,161 @@ const d = entry.data;
         margin: 0; background: var(--bg-deep); color: var(--ink);
         font-family: 'Space Grotesk', sans-serif;
       }
+
+      /* ---- Header ---- */
+      .head { padding: 26px 34px 22px; }
       .back {
-        position: fixed; top: 26px; left: 34px; z-index: 10; background: var(--bg-panel);
+        display: inline-block; background: var(--bg-panel);
         border: 1px solid var(--hairline); color: var(--ink); text-decoration: none;
-        font-size: 13px; padding: 9px 16px; border-radius: 3px;
+        font-size: 13px; padding: 9px 16px; border-radius: 3px; margin-bottom: 26px;
       }
       .back:hover { border-color: var(--amber); }
-      .wrap { max-width: 920px; margin: 0 auto; padding: 90px 40px 100px; }
-      .eyebrow { font-size: 12.5px; color: var(--amber); margin-bottom: 10px; }
+      .head-main { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; flex-wrap: wrap; }
+      .eyebrow { font-size: 12.5px; color: var(--amber); margin-bottom: 8px; }
       .title {
-        font-family: 'Fraunces', serif; font-size: 44px; font-weight: 600; margin: 0 0 22px;
-        max-width: 640px; line-height: 1.1;
+        font-family: 'Fraunces', serif; font-size: 40px; font-weight: 600; margin: 0;
+        line-height: 1.1; max-width: 720px;
       }
-      .stats {
-        display: flex; gap: 34px; flex-wrap: wrap; padding: 20px 0 28px;
-        border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); margin-bottom: 36px;
-      }
+      .stats { display: flex; gap: 34px; }
       .stat .n { font-size: 23px; font-weight: 500; }
       .stat .l { font-size: 11.5px; color: var(--ink-muted); margin-top: 2px; }
+
+      /* ---- Split: 70% gallery / 30% map ---- */
+      .split {
+        /* Photo height is set explicitly so every photo's width follows from its own
+           aspect ratio (split height − scroller padding − caption − controls row). */
+        --split-h: max(560px, calc(100svh - 40px));
+        --photo-h: calc(var(--split-h) - 48px - 46px - 64px);
+        display: grid; grid-template-columns: 7fr 3fr;
+        height: var(--split-h);
+        border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+      }
+
+      .gallery-col { position: relative; min-width: 0; display: flex; flex-direction: column; }
+      .scroller {
+        flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 22px;
+        overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
+        padding: 28px 12% 20px; scrollbar-width: none; outline: none;
+        overscroll-behavior-x: contain;
+      }
+      .scroller::-webkit-scrollbar { display: none; }
+      .scroller:focus-visible { box-shadow: inset 0 0 0 1px var(--amber); }
+
+      .slide {
+        margin: 0; flex: none; display: flex; flex-direction: column;
+        scroll-snap-align: center; cursor: pointer;
+        opacity: .32; transform: scale(.96);
+        transition: opacity .45s ease, transform .45s ease;
+      }
+      .slide.is-active { opacity: 1; transform: none; cursor: default; }
+      .frame { height: var(--photo-h); display: flex; }
+      /* Real photos keep their own aspect ratio: full height, natural width. */
+      .frame img {
+        height: var(--photo-h); width: auto; max-width: 52vw; object-fit: contain;
+        border-radius: 2px; box-shadow: 0 24px 60px rgba(0,0,0,.5); display: block;
+      }
+      .ph {
+        height: var(--photo-h); aspect-ratio: 3 / 2; max-width: 52vw; border-radius: 2px;
+        box-shadow: 0 24px 60px rgba(0,0,0,.5); display: flex; align-items: flex-end; padding: 14px 16px;
+      }
+      .ph span { font-size: 11px; color: rgba(255,255,255,.55); letter-spacing: .04em; }
+
+      figcaption {
+        flex: none; height: 46px; display: flex; align-items: baseline; gap: 12px; padding-top: 14px;
+        font-size: 13px; color: var(--ink-muted); width: 0; min-width: 100%;
+      }
+      figcaption .num { color: var(--amber); font-variant-numeric: tabular-nums; }
+      figcaption .place { font-family: 'Fraunces', serif; font-size: 18px; color: var(--ink); white-space: nowrap; }
+      figcaption .cap { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      .controls {
+        flex: none; height: 64px; display: flex; align-items: center; gap: 14px; padding: 0 34px 20px;
+      }
+      .nav {
+        width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--hairline);
+        background: rgba(24,33,35,.85); color: var(--ink); font-size: 16px; cursor: pointer;
+        font-family: inherit; backdrop-filter: blur(4px);
+      }
+      .nav:hover:not(:disabled) { border-color: var(--amber); color: var(--amber); }
+      .nav:disabled { opacity: .3; cursor: default; }
+      .counter { font-size: 12.5px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+      .counter span { color: var(--ink); }
+
+      /* ---- Mini map column ---- */
+      .map-col {
+        border-left: 1px solid var(--hairline); padding: 28px 28px 26px;
+        display: flex; flex-direction: column; gap: 16px; min-width: 0;
+      }
+      .map-box {
+        flex: 1; min-height: 240px; position: relative; border-radius: 4px; overflow: hidden;
+        border: 1px solid var(--hairline);
+      }
+      #minimap { position: absolute; inset: 0; background: var(--bg-deep); }
+      :global(.leaflet-container) { background: var(--bg-deep) !important; font-family: 'Space Grotesk', sans-serif; }
+      :global(.leaflet-control-attribution) {
+        background: rgba(15,22,24,.7) !important; color: #6B7775 !important; font-size: 9.5px;
+      }
+      :global(.leaflet-control-attribution a) { color: #93A19E !important; }
+      :global(.leaflet-bar a) {
+        background: var(--bg-panel) !important; color: var(--ink) !important; border-color: var(--hairline) !important;
+      }
+      :global(.mm-region) { filter: drop-shadow(0 0 5px #6E4FBE); }
+
+      /* Photo points */
+      :global(.mm-pin) { position: relative; }
+      :global(.mm-pin .dot) {
+        position: absolute; left: 3px; top: 3px; width: 8px; height: 8px; border-radius: 50%;
+        background: #5A5070; border: 1px solid #8E7BC4; transition: all .3s ease;
+      }
+      :global(.mm-pin .pulse) {
+        position: absolute; left: -9px; top: -9px; width: 32px; height: 32px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(178,154,232,.75), rgba(142,123,196,0) 70%);
+        opacity: 0; transform: scale(.3); transition: opacity .3s ease, transform .3s ease;
+      }
+      :global(.mm-pin .label) {
+        position: absolute; left: 20px; top: 50%; transform: translate(-4px, -50%);
+        white-space: nowrap; font-size: 12px; font-weight: 500; color: var(--ink);
+        background: rgba(24,33,35,.92); border: 1px solid #8E7BC4; padding: 4px 9px; border-radius: 3px;
+        opacity: 0; transition: opacity .3s ease, transform .3s ease; pointer-events: none;
+        box-shadow: 0 0 14px rgba(142,123,196,.45);
+      }
+      :global(.mm-pin:hover .dot) { background: #8E7BC4; }
+      :global(.mm-pin.is-active .dot) {
+        left: 1px; top: 1px; width: 12px; height: 12px; background: #E4DBF5; border-color: #fff;
+        box-shadow: 0 0 8px #B29AE8, 0 0 18px #8A6BD0;
+      }
+      :global(.mm-pin.is-active .pulse) { opacity: 1; animation: mmPulse 2.2s ease-out infinite; }
+      :global(.mm-pin.is-active .label) { opacity: 1; transform: translate(0, -50%); }
+      @keyframes mmPulse {
+        0% { transform: scale(.4); opacity: .95; }
+        100% { transform: scale(1.6); opacity: 0; }
+      }
+
+      .now {
+        display: flex; gap: 14px; align-items: center; background: var(--bg-panel);
+        border: 1px solid var(--hairline); border-radius: 4px; padding: 12px;
+      }
+      .now-thumb {
+        width: 64px; height: 64px; flex: none; border-radius: 2px;
+        background-size: cover; background-position: center; transition: background .3s ease;
+      }
+      .now-text { min-width: 0; }
+      .now-label { font-size: 11px; color: var(--ink-muted); }
+      .now-place {
+        font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin: 2px 0 3px;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .now-coords { font-size: 11.5px; color: var(--amber); font-variant-numeric: tabular-nums; }
+      .map-hint { font-size: 11.5px; color: var(--ink-muted); }
+
+      /* ---- Below the split ---- */
+      .wrap { max-width: 920px; margin: 0 auto; padding: 64px 40px 100px; }
       .section-title { font-size: 12.5px; color: var(--ink-muted); letter-spacing: .02em; margin: 0 0 16px; }
-      .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-      .gallery div { aspect-ratio: 4/3; border-radius: 3px; }
-      .gallery-note { font-size: 12px; color: var(--ink-muted); margin-bottom: 52px; }
       .notes { max-width: 640px; font-size: 15.5px; line-height: 1.75; color: #D8D3C8; margin-bottom: 56px; }
       .notes :global(p) { margin: 0 0 16px; }
       .track-box {
         background: var(--bg-panel); border: 1px solid var(--hairline); border-radius: 4px;
-        padding: 22px 26px; display: flex; align-items: center; justify-content: space-between;
+        padding: 22px 26px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
       }
       .track-box .l1 { font-size: 12.5px; color: var(--ink-muted); }
       .dl-btn {
@@ -107,10 +443,28 @@ const d = entry.data;
         color: var(--amber); font-size: 13px; padding: 9px 18px; border-radius: 3px; text-decoration: none;
       }
       .dl-btn:hover { background: rgba(142,123,196,.15); }
+
+      /* ---- Tablet / phone: gallery on top, map below ---- */
+      @media (max-width: 900px) {
+        .split {
+          --photo-h: max(260px, calc(62svh - 120px));
+          grid-template-columns: 1fr; height: auto;
+        }
+        .scroller { flex: none; padding: 18px 8% 14px; gap: 14px; }
+        .frame img, .ph { max-width: 84vw; }
+        .map-col { border-left: 0; border-top: 1px solid var(--hairline); padding: 20px 16px; }
+        .map-box { flex: none; height: 300px; }
+        .controls { height: 56px; padding: 0 16px 14px; }
+      }
       @media (max-width: 640px) {
-        .title { font-size: 32px; }
-        .wrap { padding: 80px 20px 70px; }
-        .gallery { grid-template-columns: repeat(2, 1fr); }
+        .head { padding: 18px 16px 18px; }
+        .title { font-size: 30px; }
+        .stats { gap: 24px; }
+        .wrap { padding: 44px 16px 70px; }
+        figcaption .cap { display: none; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .slide, :global(.mm-pin *) { transition: none !important; animation: none !important; }
       }
     </style>
   </body>

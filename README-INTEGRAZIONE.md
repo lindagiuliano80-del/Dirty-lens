@@ -68,9 +68,29 @@ nome usato nel file `src/data/italy-regions.json` (proprietà `reg_name`), altri
 la regione non si illumina. I nomi validi sono quelli delle 20 regioni italiane in
 italiano standard, es. "Emilia-Romagna", "Trentino-Alto Adige/Südtirol", ecc.
 
+## Aggiungere le foto di un viaggio
+La pagina di ogni viaggio ha una galleria a scorrimento orizzontale (70% a sinistra)
+e una mini mappa (30% a destra): mentre scorri, sulla mappa si illumina il punto
+esatto in cui è stata scattata la foto che hai davanti.
+
+Le foto si elencano nel frontmatter del file `.md`, nell'ordine in cui vuoi vederle:
+
+```yaml
+foto:
+  - src: "/foto/molise/cacciatore.jpg"   # file dentro public/foto/molise/
+    luogo: "Campobasso"                  # nome che si accende sulla mappa
+    didascalia: "Il cacciatore incontrato all'alba sopra Campobasso."
+    lat: 41.5603                         # coordinate dello scatto
+    lng: 14.6627
+```
+
+- Metti i file delle immagini in `public/foto/<regione>/`.
+- Finché una foto non ha `src`, al suo posto compare un segnaposto colorato.
+- Le coordinate le trovi su Google Maps (tasto destro sul punto → copia le coordinate),
+  oppure nei dati EXIF della foto se il telefono ha il GPS attivo.
+- Le foto verticali e orizzontali vengono mostrate intere, senza ritagli.
+
 ## Cosa manca ancora (prossimi passi)
-- Le foto sono segnaposto a gradiente colorato — vanno sostituite con `<img>` reali
-  nel componente `[regione].astro` (sezione "Galleria").
 - Il profilo altimetrico animato del prototipo HTML non è ancora stato riportato in
   questa pagina di dettaglio — se lo vuoi, chiedimelo e lo aggiungiamo.
 - Nessun deploy configurato: quando sei pronta, colleghiamo il repository GitHub a
