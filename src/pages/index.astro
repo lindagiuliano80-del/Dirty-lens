@@ -1,0 +1,36 @@
+---
+import { getCollection } from 'astro:content';
+import RegionMap from '../components/RegionMap.astro';
+
+const viaggi = await getCollection('viaggi');
+
+const trips = viaggi.map((v) => ({
+  regione: v.data.regione,
+  titolo: v.data.titolo,
+  data: v.data.data,
+  km: v.data.km,
+  dislivelloM: v.data.dislivelloM,
+  giorni: v.data.giorni,
+  coverColors: v.data.coverColors,
+  url: `/viaggi/${v.id}/`,
+}));
+---
+
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DirtyLens — diario di bikepacking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Space Grotesk', sans-serif; }
+    </style>
+  </head>
+  <body>
+    <RegionMap trips={trips} />
+  </body>
+</html>

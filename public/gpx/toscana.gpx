@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="DirtyLens">
+<trk><name>toscana</name><trkseg>
+<trkpt lat="43.35000" lon="11.57000"><ele>120</ele></trkpt>
+<trkpt lat="43.49100" lon="11.51827"><ele>127</ele></trkpt>
+<trkpt lat="43.52529" lon="11.38739"><ele>134</ele></trkpt>
+<trkpt lat="43.42693" lon="11.23893"><ele>141</ele></trkpt>
+<trkpt lat="43.27035" lon="11.14271"><ele>148</ele></trkpt>
+<trkpt lat="43.17404" lon="11.14398"><ele>155</ele></trkpt>
+<trkpt lat="43.21090" lon="11.24214"><ele>162</ele></trkpt>
+<trkpt lat="43.35303" lon="11.39103"><ele>169</ele></trkpt>
+<trkpt lat="43.49286" lon="11.52062"><ele>176</ele></trkpt>
+<trkpt lat="43.52458" lon="11.56997"><ele>183</ele></trkpt>
+<trkpt lat="43.42418" lon="11.51586"><ele>190</ele></trkpt>
+<trkpt lat="43.26764" lon="11.38374"><ele>197</ele></trkpt>
+</trkseg></trk>
+</gpx>

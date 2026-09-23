@@ -1,0 +1,216 @@
+---
+// RegionMap.astro
+// Receives `trips`: an array of { regione, titolo, data, km, dislivelloM, giorni, coverColors, url }
+// built from the "viaggi" content collection (see src/pages/index.astro).
+import 'leaflet/dist/leaflet.css';
+import regionsGeoJSON from '../data/italy-regions.json';
+
+interface Trip {
+  regione: string;
+  titolo: string;
+  data: string;
+  km: number;
+  dislivelloM: number;
+  giorni: number;
+  coverColors: string[];
+  url: string;
+}
+
+interface Props {
+  trips: Trip[];
+}
+
+const { trips } = Astro.props;
+---
+
+<svg width="0" height="0" style="position:absolute">
+  <filter id="pencilWobble" x="-25%" y="-25%" width="150%" height="150%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.032" numOctaves="2" seed="7" result="noise" />
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.4" />
+  </filter>
+  <filter id="pencilWobbleLive" x="-40%" y="-40%" width="180%" height="180%">
+    <feTurbulence type="fractalNoise" numOctaves="2" seed="11" result="noise">
+      <animate attributeName="baseFrequency" values="0.020;0.032;0.022;0.020" dur="16s" repeatCount="indefinite" />
+    </feTurbulence>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" />
+  </filter>
+</svg>
+
+<div class="map-wrap">
+  <div id="map"></div>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="word display">DirtyLens</div>
+      <div class="sub">diario di bikepacking, regione per regione</div>
+    </div>
+    <div class="topnav"><span>Viaggi</span><span>Info</span></div>
+  </div>
+
+  <div class="legend"><span class="dot"></span> regione con un viaggio raccontato</div>
+  <div class="hint">Passa il mouse su una regione accesa per l'anteprima, cliccaci sopra per aprire il diario.</div>
+
+  <div class="preview" id="preview">
+    <div class="region-name" id="pv-name"></div>
+    <div class="region-meta" id="pv-meta"></div>
+    <div class="thumbs" id="pv-thumbs"></div>
+    <div class="cta">Clicca per aprire il diario</div>
+  </div>
+</div>
+
+<script type="application/json" id="trips-data" set:html={JSON.stringify(trips)} />
+<script type="application/json" id="regions-data" set:html={JSON.stringify(regionsGeoJSON)} />
+
+<script>
+  import L from 'leaflet';
+
+  const trips = JSON.parse(document.getElementById('trips-data')!.textContent!);
+  const regionsGeoJSON = JSON.parse(document.getElementById('regions-data')!.textContent!);
+
+  const TRIPS_BY_REGION: Record<string, any> = {};
+  trips.forEach((t: any) => { TRIPS_BY_REGION[t.regione] = t; });
+
+  function grad(colors: string[], i: number) {
+    const a = colors[i % colors.length];
+    const b = colors[(i + 1) % colors.length];
+    const angle = 35 + (i * 47) % 180;
+    return `linear-gradient(${angle}deg, ${a}, ${b})`;
+  }
+
+  const map = L.map('map', {
+    zoomControl: false, attributionControl: true, worldCopyJump: true,
+    minZoom: 2, maxZoom: 9, zoomSnap: 0.1,
+  }).setView([15, 10], 2);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19,
+  }).addTo(map);
+
+  setTimeout(() => { map.flyTo([42.6, 12.6], 5.6, { duration: 2.3, easeLinearity: 0.15 }); }, 550);
+
+  function styleFor(feature: any) {
+    const trip = TRIPS_BY_REGION[feature.properties.reg_name];
+    if (trip) {
+      return {
+        fillColor: '#E4DBF5', fillOpacity: 0.38, color: '#8A6BD0', weight: 1.8,
+        className: 'region-visited', dashArray: '1,3,6,2,9,1,4,5,2,7',
+        lineCap: 'round' as const, lineJoin: 'round' as const,
+      };
+    }
+    return {
+      fillColor: '#C8C8C8', fillOpacity: 0.22, color: '#7A7A7A', weight: 1,
+      className: 'region-dim', dashArray: '2,4,8,2,10,3,1,5',
+      lineCap: 'round' as const, lineJoin: 'round' as const,
+    };
+  }
+
+  const preview = document.getElementById('preview')!;
+
+  L.geoJSON(regionsGeoJSON as any, {
+    style: styleFor,
+    onEachFeature: (feature, layer: any) => {
+      const trip = TRIPS_BY_REGION[feature.properties.reg_name];
+      if (!trip) return;
+
+      layer.on('mouseover', (e: any) => {
+        layer.setStyle({ fillOpacity: 0.55 });
+        showPreview(trip, e.containerPoint);
+      });
+      layer.on('mousemove', (e: any) => { positionPreview(e.containerPoint); });
+      layer.on('mouseout', () => {
+        layer.setStyle({ fillOpacity: 0.38 });
+        preview.classList.remove('show');
+      });
+      layer.on('click', () => { window.location.href = trip.url; });
+    },
+  }).addTo(map);
+
+  function showPreview(trip: any, point: any) {
+    document.getElementById('pv-name')!.textContent = trip.titolo;
+    document.getElementById('pv-meta')!.textContent = `${trip.regione} · ${trip.data}`;
+    const thumbs = document.getElementById('pv-thumbs')!;
+    thumbs.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const d = document.createElement('div');
+      d.style.background = grad(trip.coverColors, i);
+      thumbs.appendChild(d);
+    }
+    positionPreview(point);
+    preview.classList.add('show');
+  }
+
+  function positionPreview(point: any) {
+    const mapEl = document.getElementById('map')!.getBoundingClientRect();
+    let x = point.x + 18, y = point.y - 20;
+    if (x + 250 > mapEl.width) x = point.x - 256;
+    if (y + 180 > mapEl.height) y = mapEl.height - 190;
+    if (y < 10) y = 10;
+    preview.style.left = x + 'px';
+    preview.style.top = y + 'px';
+  }
+</script>
+
+<style>
+  .map-wrap { position: relative; width: 100%; height: 100vh; overflow: hidden; background: #fff; }
+  #map { position: absolute; inset: 0; z-index: 1; background: #fff; }
+  :global(.leaflet-container) { background: #fff !important; }
+  :global(.leaflet-control-attribution) {
+    background: rgba(255,255,255,.7) !important; color: #6B6B6B !important;
+    font-family: 'Space Grotesk', sans-serif; font-size: 10px;
+  }
+
+  :global(.region-visited) {
+    animation: pulseGlow 7s ease-in-out infinite; cursor: pointer;
+    filter: url(#pencilWobbleLive) blur(.35px) drop-shadow(0 0 5px #9B7FDA) drop-shadow(0 0 13px #5E3FA8);
+  }
+  @keyframes pulseGlow {
+    0% { filter: url(#pencilWobbleLive) blur(.3px) drop-shadow(0 0 4px #9B7FDA) drop-shadow(0 0 10px #5E3FA8); }
+    35% { filter: url(#pencilWobbleLive) blur(.7px) drop-shadow(0 0 9px #B29AE8) drop-shadow(0 0 20px #6E4FBE); }
+    70% { filter: url(#pencilWobbleLive) blur(.45px) drop-shadow(0 0 6px #8A6BD0) drop-shadow(0 0 24px #4A2F8C); }
+    100% { filter: url(#pencilWobbleLive) blur(.3px) drop-shadow(0 0 4px #9B7FDA) drop-shadow(0 0 10px #5E3FA8); }
+  }
+  :global(.region-dim) { transition: fill-opacity .2s ease; filter: url(#pencilWobble); }
+
+  .topbar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 20; display: flex; align-items: center;
+    justify-content: space-between; padding: 26px 34px; pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,0) 78%);
+  }
+  .brand { pointer-events: auto; color: #EBE7DD; }
+  .brand .word { font-size: 20px; letter-spacing: .02em; font-weight: 600; }
+  .brand .sub { font-size: 12px; color: #93A19E; margin-top: 2px; }
+  .topnav { pointer-events: auto; display: flex; gap: 26px; font-size: 13px; color: #93A19E; }
+
+  .legend {
+    position: absolute; left: 34px; bottom: 28px; z-index: 20; display: flex; align-items: center;
+    gap: 10px; font-size: 12.5px; color: #93A19E; background: rgba(15,22,24,.5);
+    padding: 9px 14px; border-radius: 3px; border: 1px solid #2C3739; backdrop-filter: blur(4px);
+  }
+  .legend .dot { width: 9px; height: 9px; border-radius: 50%; background: #8E7BC4; box-shadow: 0 0 8px #8E7BC4; flex: none; }
+
+  .hint {
+    position: absolute; right: 34px; bottom: 28px; z-index: 20; font-size: 12.5px; color: #93A19E;
+    max-width: 220px; text-align: right; line-height: 1.5;
+  }
+
+  .preview {
+    position: absolute; z-index: 30; width: 238px; background: #182123;
+    border: 1px solid #2C3739; border-radius: 4px; padding: 14px 14px 15px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.45); opacity: 0; transform: translateY(6px);
+    transition: opacity .16s ease, transform .16s ease; pointer-events: none;
+  }
+  .preview.show { opacity: 1; transform: translateY(0); }
+  .preview .region-name { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 600; margin: 0 0 3px; color: #EBE7DD; }
+  .preview .region-meta { font-size: 11.5px; color: #93A19E; margin-bottom: 10px; }
+  .preview .thumbs { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin-bottom: 11px; }
+  .preview .thumbs div { aspect-ratio: 1; border-radius: 2px; background-size: cover; background-position: center; }
+  .preview .cta { font-size: 11.5px; color: #8E7BC4; border-top: 1px solid #2C3739; padding-top: 9px; }
+
+  .display { font-family: 'Fraunces', serif; }
+
+  @media (max-width: 640px) {
+    .topbar { padding: 18px 18px; }
+    .legend, .hint { display: none; }
+  }
+</style>

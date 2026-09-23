@@ -1,0 +1,117 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+
+export async function getStaticPaths() {
+  const viaggi = await getCollection('viaggi');
+  return viaggi.map((entry) => ({
+    params: { regione: entry.id },
+    props: { entry },
+  }));
+}
+
+interface Props {
+  entry: CollectionEntry<'viaggi'>;
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const d = entry.data;
+---
+
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{d.titolo} — DirtyLens</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <a class="back" href="/">← Torna alla mappa</a>
+
+    <div class="wrap">
+      <div class="eyebrow">{d.regione} · {d.data}</div>
+      <h1 class="title">{d.titolo}</h1>
+
+      <div class="stats">
+        <div class="stat"><div class="n">{d.km}</div><div class="l">km</div></div>
+        <div class="stat"><div class="n">{d.dislivelloM.toLocaleString('it-IT')}</div><div class="l">m dislivello</div></div>
+        <div class="stat"><div class="n">{d.giorni}</div><div class="l">giorni</div></div>
+      </div>
+
+      <div class="section-title">Galleria</div>
+      <div class="gallery">
+        {Array.from({ length: 6 }).map((_, i) => {
+          const a = d.coverColors[i % d.coverColors.length];
+          const b = d.coverColors[(i + 1) % d.coverColors.length];
+          return <div style={`background: linear-gradient(${35 + (i * 47) % 180}deg, ${a}, ${b});`} />;
+        })}
+      </div>
+      <div class="gallery-note">Foto segnaposto — sostituiscile con gli scatti veri del viaggio.</div>
+
+      <div class="section-title">Osservazioni</div>
+      <div class="notes">
+        <Content />
+      </div>
+
+      <div class="track-box">
+        <div class="l1">Traccia GPS</div>
+        <a class="dl-btn" href={`/gpx/${d.gpxFile}`} download>Scarica traccia GPX</a>
+      </div>
+    </div>
+
+    <style>
+      :root {
+        --bg-deep: #0F1618; --bg-panel: #182123; --ink: #EBE7DD; --ink-muted: #93A19E;
+        --hairline: #2C3739; --amber: #8E7BC4;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; background: var(--bg-deep); color: var(--ink);
+        font-family: 'Space Grotesk', sans-serif;
+      }
+      .back {
+        position: fixed; top: 26px; left: 34px; z-index: 10; background: var(--bg-panel);
+        border: 1px solid var(--hairline); color: var(--ink); text-decoration: none;
+        font-size: 13px; padding: 9px 16px; border-radius: 3px;
+      }
+      .back:hover { border-color: var(--amber); }
+      .wrap { max-width: 920px; margin: 0 auto; padding: 90px 40px 100px; }
+      .eyebrow { font-size: 12.5px; color: var(--amber); margin-bottom: 10px; }
+      .title {
+        font-family: 'Fraunces', serif; font-size: 44px; font-weight: 600; margin: 0 0 22px;
+        max-width: 640px; line-height: 1.1;
+      }
+      .stats {
+        display: flex; gap: 34px; flex-wrap: wrap; padding: 20px 0 28px;
+        border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); margin-bottom: 36px;
+      }
+      .stat .n { font-size: 23px; font-weight: 500; }
+      .stat .l { font-size: 11.5px; color: var(--ink-muted); margin-top: 2px; }
+      .section-title { font-size: 12.5px; color: var(--ink-muted); letter-spacing: .02em; margin: 0 0 16px; }
+      .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+      .gallery div { aspect-ratio: 4/3; border-radius: 3px; }
+      .gallery-note { font-size: 12px; color: var(--ink-muted); margin-bottom: 52px; }
+      .notes { max-width: 640px; font-size: 15.5px; line-height: 1.75; color: #D8D3C8; margin-bottom: 56px; }
+      .notes :global(p) { margin: 0 0 16px; }
+      .track-box {
+        background: var(--bg-panel); border: 1px solid var(--hairline); border-radius: 4px;
+        padding: 22px 26px; display: flex; align-items: center; justify-content: space-between;
+      }
+      .track-box .l1 { font-size: 12.5px; color: var(--ink-muted); }
+      .dl-btn {
+        font-family: 'Space Grotesk', sans-serif; background: transparent; border: 1px solid var(--amber);
+        color: var(--amber); font-size: 13px; padding: 9px 18px; border-radius: 3px; text-decoration: none;
+      }
+      .dl-btn:hover { background: rgba(142,123,196,.15); }
+      @media (max-width: 640px) {
+        .title { font-size: 32px; }
+        .wrap { padding: 80px 20px 70px; }
+        .gallery { grid-template-columns: repeat(2, 1fr); }
+      }
+    </style>
+  </body>
+</html>
