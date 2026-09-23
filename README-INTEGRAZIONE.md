@@ -92,8 +92,9 @@ foto:
 - Le dimensioni di ogni foto vengono lette in automatico (`src/lib/image-size.ts`),
   quindi la galleria non "salta" mentre le immagini si caricano. Formati supportati:
   JPG, PNG, WebP. Per un sito veloce, esporta le foto a circa 2000 px sul lato lungo.
-- Le 6 immagini attuali in `public/foto/molise/` sono illustrazioni di esempio:
-  sostituiscile con i tuoi scatti tenendo gli stessi nomi, oppure cambia `src` nel `.md`.
+- Le 7 foto attuali in `public/foto/molise/` sono ritagliate da uno screenshot, quindi a
+  bassa risoluzione, e i luoghi sono assegnati a caso: sostituiscile con i file originali
+  tenendo gli stessi nomi (`molise-01.jpg` …) e correggi `luogo`, `lat`, `lng` nel `.md`.
 
 ## Cosa manca ancora (prossimi passi)
 - Il profilo altimetrico animato del prototipo HTML non è ancora stato riportato in

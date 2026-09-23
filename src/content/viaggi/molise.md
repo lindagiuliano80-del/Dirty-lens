@@ -8,36 +8,41 @@ giorni: 4
 gpxFile: "molise.gpx"
 coverColors: ["#6B7A5E", "#8A6A4F", "#5C6F63", "#7A5C42"]
 foto:
-  - src: "/foto/molise/01-campobasso.jpg"
-    luogo: "Campobasso"
-    didascalia: "Il cacciatore incontrato all'alba sulle colline sopra Campobasso."
-    lat: 41.5603
-    lng: 14.6627
-  - src: "/foto/molise/02-sepino.jpg"
-    luogo: "Sepino"
-    didascalia: "Il tratturo Pescasseroli–Candela che entra tra le rovine di Saepinum."
-    lat: 41.4079
-    lng: 14.619
-  - src: "/foto/molise/03-trivento.jpg"
+  - src: "/foto/molise/molise-01.jpg"
     luogo: "Trivento"
-    didascalia: "Guado sul Trigno, prima della lunga salita verso l'Alto Molise."
+    didascalia: "Il saluto in cima alla salita, controluce."
     lat: 41.7836
     lng: 14.5503
-  - src: "/foto/molise/04-agnone.jpg"
-    luogo: "Agnone"
-    didascalia: "Pausa caffè nella piazza di Agnone, la città delle campane."
-    lat: 41.8106
-    lng: 14.3781
-  - src: "/foto/molise/05-capracotta.jpg"
+  - src: "/foto/molise/molise-02.jpg"
+    luogo: "Termoli"
+    didascalia: "Due bici tra i calanchi e l'erba bruciata dal sole."
+    lat: 42.0003
+    lng: 14.995
+  - src: "/foto/molise/molise-03.jpg"
+    luogo: "Frosolone"
+    didascalia: "Tratturo nella nebbia del mattino."
+    lat: 41.5997
+    lng: 14.4492
+  - src: "/foto/molise/molise-04.jpg"
+    luogo: "Bojano"
+    didascalia: "Sosta al bar pizzeria del paese."
+    lat: 41.4839
+    lng: 14.4722
+  - src: "/foto/molise/molise-05.jpg"
     luogo: "Capracotta"
-    didascalia: "Sopra i 1400 metri, con il vento che non smette mai."
+    didascalia: "Cardi e nebbia, niente altro all'orizzonte."
     lat: 41.8333
     lng: 14.2667
-  - src: "/foto/molise/06-pescopennataro.jpg"
-    luogo: "Pescopennataro"
-    didascalia: "Il paese di pietra affacciato sulla valle del Sangro."
-    lat: 41.8781
-    lng: 14.2936
+  - src: "/foto/molise/molise-06.jpg"
+    luogo: "Agnone"
+    didascalia: "Nel campo, prima che la nebbia si alzi."
+    lat: 41.8106
+    lng: 14.3781
+  - src: "/foto/molise/molise-07.jpg"
+    luogo: "Larino"
+    didascalia: "L'insegna che dice dove siamo."
+    lat: 41.8047
+    lng: 14.9106
 ---
 
 Il Molise si attraversa su tratturi silenziosi, gli antichi percorsi della transumanza: sterrato compatto, pochissime auto, e paesi che sembrano fermi a cinquant'anni fa.
