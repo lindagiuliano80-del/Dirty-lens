@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import regionsGeoJSON from '../../data/italy-regions.json';
 import { imageSize } from '../../lib/image-size';
+import { url } from '../../lib/url';
 
 export async function getStaticPaths() {
   const viaggi = await getCollection('viaggi');
@@ -27,7 +28,10 @@ function grad(i: number) {
   return `linear-gradient(${35 + (i * 47) % 180}deg, ${a}, ${b})`;
 }
 
-const foto = d.foto.map((f, i) => ({ ...f, bg: grad(i), size: f.src ? imageSize(f.src) : null }));
+const foto = d.foto.map((f, i) => ({
+  ...f, src: f.src && url(f.src), bg: grad(i), size: f.src ? imageSize(f.src) : null,
+}));
+const gpxUrl = url(`/gpx/${d.gpxFile}`);
 const regionFeature = (regionsGeoJSON as any).features.find(
   (f: any) => f.properties.reg_name === d.regione,
 );
@@ -56,7 +60,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
     </svg>
 
     <header class="head">
-      <a class="back" href="/">← Torna alla mappa</a>
+      <a class="back" href={url('/')}>← Torna alla mappa</a>
       <div class="head-main">
         <div>
           <div class="eyebrow">{d.regione} · {d.data}</div>
@@ -124,12 +128,12 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
       <div class="track-box">
         <div class="l1">Traccia GPS</div>
-        <a class="dl-btn" href={`/gpx/${d.gpxFile}`} download>Scarica traccia GPX</a>
+        <a class="dl-btn" href={gpxUrl} download>Scarica traccia GPX</a>
       </div>
     </div>
 
     <script type="application/json" id="trip-data" set:html={JSON.stringify({
-      foto, region: regionFeature ?? null, gpx: `/gpx/${d.gpxFile}`,
+      foto, region: regionFeature ?? null, gpx: gpxUrl,
     })} />
 
     <script>
