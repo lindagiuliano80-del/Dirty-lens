@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import RegionMap from '../components/RegionMap.astro';
+import { url } from '../lib/url';
 
 const viaggi = await getCollection('viaggi');
 
@@ -12,7 +13,7 @@ const trips = viaggi.map((v) => ({
   dislivelloM: v.data.dislivelloM,
   giorni: v.data.giorni,
   coverColors: v.data.coverColors,
-  url: `/viaggi/${v.id}/`,
+  url: url(`/viaggi/${v.id}/`),
 }));
 ---
 
